@@ -1,0 +1,393 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { createRoot } from "react-dom/client";
+import items from "./data/items.json";
+import bosses from "./data/bosses.json";
+import "./styles.css";
+
+const normalize = (value) => String(value || "").toLowerCase().trim();
+
+const itemByName = new Map(items.map((item) => [item.name, item]));
+const bossByName = new Map(bosses.map((boss) => [boss.name, boss]));
+const itemIndexByName = new Map(items.map((item, index) => [item.name, index]));
+const priusSeriesStart = itemIndexByName.get("Prius Silver Coin");
+const priusSeriesEnd = itemIndexByName.get("Prius Platinum Coin");
+const coinSeriesNames = new Set([
+  "Prius Silver Coin",
+  "Prius Gold Coin",
+  "Prius Platinum Coin",
+  "Coin of Effort",
+]);
+const storageKey = "twrpg-helper-state";
+
+function loadSavedState() {
+  if (typeof window === "undefined") return { saveText: "", selected: [] };
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(storageKey) || "{}");
+    return {
+      saveText: typeof parsed.saveText === "string" ? parsed.saveText : "",
+      selected: Array.isArray(parsed.selected)
+        ? parsed.selected
+            .map((target) => ({ name: target.name, quantity: Number(target.quantity) }))
+            .filter((target) => itemByName.has(target.name) && target.quantity > 0)
+        : [],
+    };
+  } catch {
+    return { saveText: "", selected: [] };
+  }
+}
+
+function shouldStopDecomposing(item) {
+  if (!item || priusSeriesStart == null || priusSeriesEnd == null) return false;
+  const index = itemIndexByName.get(item.name);
+  const recipe = flattenRecipe(item.recipe);
+  const isInPriusSeriesBlock = index >= priusSeriesStart && index <= priusSeriesEnd;
+  const isBossDropCoinExchange =
+    Array.isArray(item.dropped_by) &&
+    recipe.length > 0 &&
+    recipe.every((ingredient) => coinSeriesNames.has(ingredient.name));
+
+  return isInPriusSeriesBlock || isBossDropCoinExchange;
+}
+
+function parseSaveFile(raw) {
+  const sectionNames = new Set(["Hero Inventory", "Bag", "Storage"]);
+  const inventory = new Map();
+  const sections = {};
+  let activeSection = null;
+
+  const preloadRegex = /Preload\(\s*"([^"]*)"\s*\)/g;
+  const lines = [...raw.matchAll(preloadRegex)].map((match) => match[1].trim());
+
+  for (const line of lines) {
+    const sectionMatch = line.match(/^-{5,}(.+?)-{5,}$/);
+    if (sectionMatch) {
+      const name = sectionMatch[1].trim();
+      activeSection = sectionNames.has(name) ? name : null;
+      if (activeSection) sections[activeSection] = [];
+      continue;
+    }
+
+    if (!activeSection) continue;
+
+    const itemMatch = line.match(/^\d+\.\s*(.+)$/);
+    if (!itemMatch) continue;
+
+    const itemName = itemMatch[1].trim();
+    sections[activeSection].push(itemName);
+    inventory.set(itemName, (inventory.get(itemName) || 0) + 1);
+  }
+
+  return {
+    inventory,
+    sections,
+    total: [...inventory.values()].reduce((sum, count) => sum + count, 0),
+  };
+}
+
+function flattenRecipe(recipe = []) {
+  const result = [];
+  for (const entry of recipe) {
+    for (const [name, count] of Object.entries(entry)) {
+      result.push({ name, count: Number(count) || 0 });
+    }
+  }
+  return result;
+}
+
+function calculateMissing(selected, ownedInventory) {
+  const available = new Map(ownedInventory);
+  const missing = new Map();
+
+  const requireItem = (name, count) => {
+    if (count <= 0) return;
+
+    const owned = available.get(name) || 0;
+    const used = Math.min(owned, count);
+    if (used > 0) available.set(name, owned - used);
+
+    const needed = count - used;
+    if (needed <= 0) return;
+
+    const item = itemByName.get(name);
+    const recipe = flattenRecipe(item?.recipe);
+
+    if (!recipe.length || shouldStopDecomposing(item)) {
+      missing.set(name, (missing.get(name) || 0) + needed);
+      return;
+    }
+
+    for (const ingredient of recipe) {
+      requireItem(ingredient.name, ingredient.count * needed);
+    }
+  };
+
+  for (const target of selected) {
+    requireItem(target.name, target.quantity);
+  }
+
+  return [...missing.entries()]
+    .map(([name, count]) => ({ item: itemByName.get(name), name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function getBossLevel(source) {
+  const level = Number(bossByName.get(source)?.level);
+  return Number.isFinite(level) ? level : -1;
+}
+
+function groupMissingBySource(missingMaterials) {
+  const grouped = new Map();
+
+  for (const material of missingMaterials) {
+    const sources = Array.isArray(material.item?.dropped_by) ? material.item.dropped_by : [];
+    const groupSources = sources.length ? sources : ["획득처 데이터 없음"];
+
+    for (const source of groupSources) {
+      if (!grouped.has(source)) {
+        const boss = bossByName.get(source);
+        grouped.set(source, {
+          source,
+          boss,
+          level: boss ? getBossLevel(source) : -1,
+          items: [],
+        });
+      }
+
+      grouped.get(source).items.push(material);
+    }
+  }
+
+  return [...grouped.values()].sort((a, b) => {
+    if (b.level !== a.level) return b.level - a.level;
+    return a.source.localeCompare(b.source);
+  });
+}
+
+function RecipeTree({ itemName, depth = 0, seen = new Set() }) {
+  const item = itemByName.get(itemName);
+  const recipe = flattenRecipe(item?.recipe);
+
+  if (!recipe.length || shouldStopDecomposing(item) || seen.has(itemName)) return null;
+
+  const nextSeen = new Set(seen);
+  nextSeen.add(itemName);
+
+  return (
+    <ul className="recipe-tree" style={{ "--depth": depth }}>
+      {recipe.map((ingredient) => (
+        <li key={`${itemName}-${ingredient.name}`}>
+          <span>{ingredient.name}</span>
+          <strong>x{ingredient.count}</strong>
+          <RecipeTree itemName={ingredient.name} depth={depth + 1} seen={nextSeen} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function App() {
+  const savedState = useMemo(() => loadSavedState(), []);
+  const [saveText, setSaveText] = useState(savedState.saveText);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(savedState.selected);
+
+  useEffect(() => {
+    window.localStorage.setItem(storageKey, JSON.stringify({ saveText, selected }));
+  }, [saveText, selected]);
+
+  const parsedSave = useMemo(() => parseSaveFile(saveText), [saveText]);
+
+  const filteredItems = useMemo(() => {
+    const q = normalize(query);
+    return items
+      .filter((item) => {
+        if (!q) return item.recipe?.length;
+        return (
+          normalize(item.name).includes(q) ||
+          normalize(item.koreanname).includes(q) ||
+          normalize(item.type).includes(q)
+        );
+      })
+      .slice(0, 80);
+  }, [query]);
+
+  const missingMaterials = useMemo(
+    () => calculateMissing(selected, parsedSave.inventory),
+    [selected, parsedSave.inventory],
+  );
+  const missingGroups = useMemo(() => groupMissingBySource(missingMaterials), [missingMaterials]);
+
+  const selectedCount = selected.reduce((sum, item) => sum + item.quantity, 0);
+
+  const addTarget = (item) => {
+    setSelected((current) => {
+      const exists = current.find((target) => target.name === item.name);
+      if (exists) {
+        return current.map((target) =>
+          target.name === item.name ? { ...target, quantity: target.quantity + 1 } : target,
+        );
+      }
+      return [...current, { name: item.name, quantity: 1 }];
+    });
+  };
+
+  const updateQuantity = (name, quantity) => {
+    setSelected((current) =>
+      current
+        .map((target) => (target.name === name ? { ...target, quantity } : target))
+        .filter((target) => target.quantity > 0),
+    );
+  };
+
+  const removeTarget = (name) => {
+    setSelected((current) => current.filter((target) => target.name !== name));
+  };
+
+  return (
+    <main>
+      <header className="topbar">
+        <div>
+          <p className="eyebrow">TWRPG Helper</p>
+          <h1>아이템 제작 재료 계산기</h1>
+        </div>
+        <div className="summary-strip">
+          <span>보유 {parsedSave.total}</span>
+          <span>목표 {selectedCount}</span>
+          <span>부족 {missingMaterials.length}</span>
+        </div>
+      </header>
+
+      <section className="workspace">
+        <aside className="panel save-panel">
+          <div className="panel-head">
+            <h2>세이브 파일</h2>
+            <button type="button" onClick={() => setSaveText("")}>
+              초기화
+            </button>
+          </div>
+          <textarea
+            value={saveText}
+            onChange={(event) => setSaveText(event.target.value)}
+            placeholder="PreloadFiles 내용 전체를 붙여넣으세요."
+          />
+
+          <div className="inventory-list">
+            {[...parsedSave.inventory.entries()].map(([name, count]) => (
+              <div key={name} className="inventory-row">
+                <span>{name}</span>
+                <strong>{count}</strong>
+              </div>
+            ))}
+            {!parsedSave.total && <p className="empty">아직 파싱된 아이템이 없습니다.</p>}
+          </div>
+        </aside>
+
+        <section className="panel search-panel">
+          <div className="panel-head">
+            <h2>목표 아이템 검색</h2>
+          </div>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="영문 또는 한글 이름으로 검색"
+          />
+
+          <div className="item-grid">
+            {filteredItems.map((item) => (
+              <button key={item.id} type="button" className="item-card" onClick={() => addTarget(item)}>
+                <span className="rank" style={{ color: `#${item.color || "4b5563"}` }}>
+                  {item.rank === "none" ? item.type : item.rank}
+                </span>
+                <strong>{item.name}</strong>
+                <small>{item.koreanname || "한글 이름 없음"}</small>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <aside className="panel target-panel">
+          <div className="panel-head">
+            <h2>목표 아이템</h2>
+          </div>
+
+          <div className="target-list">
+            {selected.map((target) => {
+              const item = itemByName.get(target.name);
+              return (
+                <article key={target.name} className="target-card">
+                  <div className="target-title">
+                    <div>
+                      <strong>{target.name}</strong>
+                      <small>{item?.koreanname}</small>
+                    </div>
+                    <div className="target-actions">
+                      <input
+                        type="number"
+                        min="0"
+                        value={target.quantity}
+                        onChange={(event) => updateQuantity(target.name, Number(event.target.value))}
+                        aria-label={`${target.name} 수량`}
+                      />
+                      <button type="button" onClick={() => removeTarget(target.name)} aria-label={`${target.name} 삭제`}>
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  <RecipeTree itemName={target.name} />
+                </article>
+              );
+            })}
+            {!selected.length && <p className="empty">검색 결과를 눌러 목표 아이템을 추가하세요.</p>}
+          </div>
+        </aside>
+      </section>
+
+      <section className="panel missing-panel">
+        <div className="panel-head missing-head">
+          <div>
+            <h2>추가로 필요한 재료</h2>
+            <p>{missingMaterials.length}종 재료를 {missingGroups.length}개 획득처 기준으로 정리했습니다.</p>
+          </div>
+        </div>
+
+        <div className="boss-grid">
+          {missingGroups.map((group) => (
+            <article key={group.source} className="boss-card">
+              <div className="boss-card-head">
+                <div>
+                  <strong>{group.source}</strong>
+                  <small>
+                    {group.boss
+                      ? `Lv. ${group.boss.level} · ${group.boss.category || group.boss.type || "Boss"}`
+                      : "보스 데이터 없음"}
+                  </small>
+                </div>
+                <span>{group.items.length}종</span>
+              </div>
+
+              <div className="boss-material-list">
+                {group.items.map(({ name, count, item }) => (
+                  <div key={`${group.source}-${name}`} className="missing-row">
+                    <div>
+                      <strong>{name}</strong>
+                      <small>{item?.koreanname || item?.type || "데이터 없음"}</small>
+                    </div>
+                    <span>x{count}</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+
+          {selected.length > 0 && !missingMaterials.length && (
+            <p className="empty">현재 보유 재료로 제작 가능합니다.</p>
+          )}
+          {!selected.length && <p className="empty">목표 아이템을 추가하면 필요한 재료가 여기에 표시됩니다.</p>}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+createRoot(document.getElementById("root")).render(<App />);
