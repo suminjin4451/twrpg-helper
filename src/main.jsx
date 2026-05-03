@@ -221,7 +221,50 @@ function calculateDiscardableItems(selected, ownedInventory) {
       count: count - (consumed.get(name) || 0),
     }))
     .filter((entry) => entry.count > 0)
+    .filter((entry) => !shouldExcludeDiscardableItem(entry.item, entry.name))
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function shouldExcludeDiscardableItem(item, name) {
+  const normalizedName = normalize(name);
+  const normalizedType = normalize(item?.type);
+
+  return (
+    normalizedName.includes("coin") ||
+    normalizedType.includes("coin") ||
+    normalizedName.includes("pickaxe") ||
+    normalizedType.includes("pickaxe") ||
+    normalizedName.includes("'s soul") ||
+    /\bsoul\b/.test(normalizedName)
+  );
+}
+
+function getHighestDropBossLevel(item) {
+  const sources = Array.isArray(item?.dropped_by) ? item.dropped_by : [];
+  const levels = sources
+    .map((source) => getBossLevel(source))
+    .filter((level) => level > -1);
+
+  return levels.length ? Math.max(...levels) : -1;
+}
+
+function groupDiscardableItems(discardableItems) {
+  const groups = [
+    { key: "lv100", title: "100lv 보스", label: "은화", items: [] },
+    { key: "lv110", title: "110lv 보스", label: "금화", items: [] },
+    { key: "lv120", title: "120lv 이상 보스", label: "백금화", items: [] },
+    { key: "other", title: "그 외", label: "기타", items: [] },
+  ];
+
+  const groupByKey = new Map(groups.map((group) => [group.key, group]));
+
+  for (const entry of discardableItems) {
+    const level = getHighestDropBossLevel(entry.item);
+    const key = level >= 120 ? "lv120" : level === 110 ? "lv110" : level === 100 ? "lv100" : "other";
+    groupByKey.get(key).items.push(entry);
+  }
+
+  return groups;
 }
 
 function canSatisfyItem(name, count, ownedInventory) {
@@ -468,6 +511,7 @@ function App() {
     () => calculateDiscardableItems(selected, parsedSave.inventory),
     [selected, parsedSave.inventory],
   );
+  const discardableGroups = useMemo(() => groupDiscardableItems(discardableItems), [discardableItems]);
 
   const selectedCount = selected.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -784,15 +828,30 @@ function App() {
           <span>{discardableItems.length}종</span>
         </div>
 
-        <div className="discard-grid">
-          {discardableItems.map(({ name, count, item }) => (
-            <div key={name} className="discard-row">
-              <div>
-                <strong>{name}</strong>
-                <small>{item?.koreanname || item?.type || "데이터 없음"}</small>
+        <div className="discard-sections">
+          {discardableGroups.map((group) => (
+            <section key={group.key} className="discard-section">
+              <div className="discard-section-head">
+                <div>
+                  <h3>{group.title}</h3>
+                  <small>{group.label}</small>
+                </div>
+                <span>{group.items.length}종</span>
               </div>
-              <span>x{count}</span>
-            </div>
+
+              <div className="discard-grid">
+                {group.items.map(({ name, count, item }) => (
+                  <div key={name} className="discard-row">
+                    <div>
+                      <strong>{name}</strong>
+                      <small>{item?.koreanname || item?.type || "데이터 없음"}</small>
+                    </div>
+                    <span>x{count}</span>
+                  </div>
+                ))}
+                {!group.items.length && <p className="empty">해당 구간에 버려도 되는 아이템이 없습니다.</p>}
+              </div>
+            </section>
           ))}
 
           {selected.length > 0 && !discardableItems.length && (
