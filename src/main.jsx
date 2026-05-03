@@ -17,6 +17,7 @@ const coinSeriesNames = new Set([
   "Prius Platinum Coin",
   "Coin of Effort",
 ]);
+const purchasableCoinNames = ["Prius Silver Coin", "Prius Gold Coin", "Prius Platinum Coin"];
 const storageKey = "twrpg-helper-state";
 
 function loadSavedState() {
@@ -131,6 +132,33 @@ function calculateMissing(selected, ownedInventory) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function canSatisfyItem(name, count, ownedInventory) {
+  const available = new Map(ownedInventory);
+
+  const requireItem = (itemName, itemCount, seen = new Set()) => {
+    if (itemCount <= 0) return true;
+
+    const owned = available.get(itemName) || 0;
+    const used = Math.min(owned, itemCount);
+    if (used > 0) available.set(itemName, owned - used);
+
+    const needed = itemCount - used;
+    if (needed <= 0) return true;
+
+    const item = itemByName.get(itemName);
+    const recipe = flattenRecipe(item?.recipe);
+
+    if (!recipe.length || shouldStopDecomposing(item) || seen.has(itemName)) return false;
+
+    const nextSeen = new Set(seen);
+    nextSeen.add(itemName);
+
+    return recipe.every((ingredient) => requireItem(ingredient.name, ingredient.count * needed, nextSeen));
+  };
+
+  return requireItem(name, count);
+}
+
 function getBossLevel(source) {
   const level = Number(bossByName.get(source)?.level);
   return Number.isFinite(level) ? level : -1;
@@ -164,7 +192,33 @@ function groupMissingBySource(missingMaterials) {
   });
 }
 
-function RecipeTree({ itemName, depth = 0, seen = new Set() }) {
+function calculateCoinSummary(missingMaterials) {
+  const summary = new Map(purchasableCoinNames.map((name) => [name, 0]));
+
+  for (const material of missingMaterials) {
+    if (summary.has(material.name)) {
+      summary.set(material.name, summary.get(material.name) + material.count);
+      continue;
+    }
+
+    const recipe = flattenRecipe(material.item?.recipe);
+    const isCoinPurchase = recipe.length > 0 && recipe.every((ingredient) => summary.has(ingredient.name));
+
+    if (!isCoinPurchase) continue;
+
+    for (const ingredient of recipe) {
+      summary.set(ingredient.name, summary.get(ingredient.name) + ingredient.count * material.count);
+    }
+  }
+
+  return purchasableCoinNames.map((name) => ({
+    name,
+    koreanname: itemByName.get(name)?.koreanname,
+    count: summary.get(name) || 0,
+  }));
+}
+
+function RecipeTree({ itemName, ownedInventory, depth = 0, seen = new Set() }) {
   const item = itemByName.get(itemName);
   const recipe = flattenRecipe(item?.recipe);
 
@@ -175,13 +229,30 @@ function RecipeTree({ itemName, depth = 0, seen = new Set() }) {
 
   return (
     <ul className="recipe-tree" style={{ "--depth": depth }}>
-      {recipe.map((ingredient) => (
-        <li key={`${itemName}-${ingredient.name}`}>
-          <span>{ingredient.name}</span>
-          <strong>x{ingredient.count}</strong>
-          <RecipeTree itemName={ingredient.name} depth={depth + 1} seen={nextSeen} />
-        </li>
-      ))}
+      {recipe.map((ingredient) => {
+        const ownedCount = ownedInventory.get(ingredient.name) || 0;
+        const isFullyOwned = ownedCount >= ingredient.count;
+        const isReady = canSatisfyItem(ingredient.name, ingredient.count, ownedInventory);
+
+        return (
+          <li
+            key={`${itemName}-${ingredient.name}`}
+            className={isReady ? "recipe-ready" : undefined}
+          >
+            <span>{ingredient.name}</span>
+            <strong>x{ingredient.count}</strong>
+            {ownedCount > 0 && <small>보유 x{ownedCount}</small>}
+            {!isFullyOwned && (
+              <RecipeTree
+                itemName={ingredient.name}
+                ownedInventory={ownedInventory}
+                depth={depth + 1}
+                seen={nextSeen}
+              />
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -217,6 +288,7 @@ function App() {
     [selected, parsedSave.inventory],
   );
   const missingGroups = useMemo(() => groupMissingBySource(missingMaterials), [missingMaterials]);
+  const coinSummary = useMemo(() => calculateCoinSummary(missingMaterials), [missingMaterials]);
 
   const selectedCount = selected.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -314,8 +386,9 @@ function App() {
           <div className="target-list">
             {selected.map((target) => {
               const item = itemByName.get(target.name);
+              const isTargetReady = canSatisfyItem(target.name, target.quantity, parsedSave.inventory);
               return (
-                <article key={target.name} className="target-card">
+                <article key={target.name} className={`target-card ${isTargetReady ? "target-ready" : ""}`}>
                   <div className="target-title">
                     <div>
                       <strong>{target.name}</strong>
@@ -334,7 +407,7 @@ function App() {
                       </button>
                     </div>
                   </div>
-                  <RecipeTree itemName={target.name} />
+                  <RecipeTree itemName={target.name} ownedInventory={parsedSave.inventory} />
                 </article>
               );
             })}
@@ -348,6 +421,14 @@ function App() {
           <div>
             <h2>추가로 필요한 재료</h2>
             <p>{missingMaterials.length}종 재료를 {missingGroups.length}개 획득처 기준으로 정리했습니다.</p>
+          </div>
+          <div className="coin-summary" aria-label="코인 구매 필요량">
+            {coinSummary.map((coin) => (
+              <span key={coin.name}>
+                <small>{coin.koreanname}</small>
+                <strong>x{coin.count}</strong>
+              </span>
+            ))}
           </div>
         </div>
 

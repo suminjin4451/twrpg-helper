@@ -226,6 +226,15 @@ small {
   overflow: hidden;
 }
 
+.target-card.target-ready {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.target-card.target-ready .target-title {
+  background: #dcfce7;
+}
+
 .target-title {
   display: flex;
   align-items: center;
@@ -288,12 +297,26 @@ small {
   font-size: 13px;
 }
 
+.recipe-tree li.recipe-ready {
+  border-left-color: #22c55e;
+  background: #f0fdf4;
+}
+
 .recipe-tree li > span {
   overflow-wrap: anywhere;
 }
 
 .recipe-tree li > strong {
   color: #475569;
+}
+
+.recipe-tree li > small {
+  width: fit-content;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 700;
 }
 
 .missing-panel {
@@ -305,7 +328,7 @@ small {
   align-items: flex-start;
 }
 
-.missing-head div {
+.missing-head > div:first-child {
   display: grid;
   gap: 3px;
 }
@@ -313,6 +336,32 @@ small {
 .missing-head p {
   color: #64748b;
   font-size: 13px;
+}
+
+.coin-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.coin-summary span {
+  display: grid;
+  min-width: 104px;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid #d5ddeb;
+  border-radius: 8px;
+  background: #fbfcff;
+}
+
+.coin-summary small {
+  color: #64748b;
+}
+
+.coin-summary strong {
+  color: #0f766e;
+  font-size: 15px;
 }
 
 .boss-grid {
