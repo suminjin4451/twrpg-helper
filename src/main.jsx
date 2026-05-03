@@ -310,6 +310,50 @@ function calculateCoinSummary(missingMaterials) {
   }));
 }
 
+function formatStatLabel(key) {
+  return key
+    .replace(/percent$/i, " %")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([a-z])([0-9])/g, "$1 $2")
+    .replace(/^./, (char) => char.toUpperCase());
+}
+
+function formatStatValue(value) {
+  if (typeof value === "number") return Number.isInteger(value) ? value : value.toLocaleString();
+  return String(value);
+}
+
+function ItemStatsTooltip({ item }) {
+  const stats = item?.stats || {};
+  const entries = Object.entries(stats);
+
+  return (
+    <div className="stats-tooltip" role="tooltip">
+      <strong>Stats</strong>
+      {entries.length ? (
+        <div className="stats-list">
+          {entries.map(([key, value]) => (
+            <div key={key} className="stats-entry">
+              <span>{formatStatLabel(key)}</span>
+              {Array.isArray(value) ? (
+                <ul>
+                  {value.map((line, index) => (
+                    <li key={`${key}-${index}`}>{line}</li>
+                  ))}
+                </ul>
+              ) : (
+                <small>{formatStatValue(value)}</small>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p>stats 정보 없음</p>
+      )}
+    </div>
+  );
+}
+
 function RecipeTree({ itemName, ownedInventory, depth = 0, seen = new Set() }) {
   const item = itemByName.get(itemName);
   const recipe = flattenRecipe(item?.recipe);
@@ -542,6 +586,7 @@ function App() {
                 </span>
                 <strong>{item.name}</strong>
                 <small>{item.koreanname || "한글 이름 없음"}</small>
+                <ItemStatsTooltip item={item} />
               </button>
             ))}
           </div>
@@ -558,6 +603,7 @@ function App() {
               const isTargetReady = canSatisfyItem(target.name, target.quantity, parsedSave.inventory);
               return (
                 <article key={target.name} className={`target-card ${isTargetReady ? "target-ready" : ""}`}>
+                  <ItemStatsTooltip item={item} />
                   <div className="target-title">
                     <div>
                       <strong>{target.name}</strong>

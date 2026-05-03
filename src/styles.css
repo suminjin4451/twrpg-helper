@@ -142,6 +142,10 @@ h3 {
   overflow: hidden;
 }
 
+.target-panel {
+  overflow: visible;
+}
+
 .panel-head {
   display: flex;
   justify-content: space-between;
@@ -249,6 +253,7 @@ textarea:focus {
   border-radius: 8px;
   background: #ffffff;
   color: inherit;
+  position: relative;
   text-align: left;
 }
 
@@ -272,7 +277,8 @@ small {
   border: 1px solid #dbe2ec;
   border-radius: 8px;
   background: #fbfcff;
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
 }
 
 .target-card.target-ready {
@@ -281,7 +287,86 @@ small {
 }
 
 .target-card.target-ready .target-title {
+  border-radius: 8px 8px 0 0;
   background: #dcfce7;
+}
+
+.stats-tooltip {
+  position: absolute;
+  left: 12px;
+  top: calc(100% + 8px);
+  z-index: 30;
+  display: none;
+  width: min(360px, 82vw);
+  max-height: 360px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 45px rgb(15 23 42 / 18%);
+  color: #172033;
+  text-align: left;
+}
+
+.item-card:hover .stats-tooltip,
+.item-card:focus-visible .stats-tooltip,
+.target-card:hover > .stats-tooltip,
+.target-card:focus-within > .stats-tooltip {
+  display: grid;
+  gap: 10px;
+}
+
+.target-card > .stats-tooltip {
+  top: 44px;
+}
+
+.stats-tooltip > strong {
+  color: #334155;
+  font-size: 13px;
+}
+
+.stats-tooltip p {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.stats-list {
+  display: grid;
+  gap: 8px;
+}
+
+.stats-entry {
+  display: grid;
+  gap: 3px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.stats-entry:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.stats-entry > span {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stats-entry > small {
+  color: #0f766e;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.stats-entry ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 16px;
+  color: #172033;
+  font-size: 12px;
 }
 
 .target-title {
