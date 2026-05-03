@@ -87,6 +87,46 @@ h3 {
   text-align: center;
 }
 
+.preset-controls {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  min-width: min(560px, 100%);
+}
+
+.preset-controls select,
+.preset-controls input {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172033;
+  outline: none;
+}
+
+.preset-controls select:focus,
+.preset-controls input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+.preset-controls button {
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+}
+
+.preset-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(280px, 0.95fr) minmax(260px, 0.75fr) minmax(520px, 1.7fr);
@@ -157,6 +197,15 @@ textarea:focus {
 .target-list {
   display: grid;
   gap: 8px;
+}
+
+.target-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.target-list > .empty {
+  grid-column: 1 / -1;
 }
 
 .inventory-row,
@@ -478,6 +527,16 @@ small {
 }
 
 @media (max-width: 1180px) {
+  .topbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .preset-controls {
+    order: 3;
+    width: 100%;
+  }
+
   .workspace {
     grid-template-columns: 1fr 1fr;
   }
@@ -492,6 +551,12 @@ small {
     align-items: stretch;
     flex-direction: column;
     padding: 22px 16px 16px;
+  }
+
+  .preset-controls {
+    grid-template-columns: 1fr;
+    min-width: 0;
+    order: 0;
   }
 
   h1 {
@@ -525,6 +590,10 @@ small {
 
   .panel {
     min-height: auto;
+  }
+
+  .target-list {
+    grid-template-columns: 1fr;
   }
 
   .item-grid {

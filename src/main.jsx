@@ -20,21 +20,64 @@ const coinSeriesNames = new Set([
 const purchasableCoinNames = ["Prius Silver Coin", "Prius Gold Coin", "Prius Platinum Coin"];
 const storageKey = "twrpg-helper-state";
 
+function createPreset({ id, name, saveText = "", selected = [] }) {
+  return {
+    id,
+    name,
+    saveText,
+    selected: selected
+      .map((target) => ({ name: target.name, quantity: Number(target.quantity) }))
+      .filter((target) => itemByName.has(target.name) && target.quantity > 0),
+  };
+}
+
 function loadSavedState() {
-  if (typeof window === "undefined") return { saveText: "", selected: [] };
+  if (typeof window === "undefined") {
+    return {
+      activePresetId: "default",
+      presets: [createPreset({ id: "default", name: "기본" })],
+    };
+  }
 
   try {
     const parsed = JSON.parse(window.localStorage.getItem(storageKey) || "{}");
-    return {
+    const presets = Array.isArray(parsed.presets)
+      ? parsed.presets
+          .map((preset, index) =>
+            createPreset({
+              id: typeof preset.id === "string" ? preset.id : `preset-${index + 1}`,
+              name: typeof preset.name === "string" && preset.name.trim() ? preset.name.trim() : `프리셋 ${index + 1}`,
+              saveText: typeof preset.saveText === "string" ? preset.saveText : "",
+              selected: Array.isArray(preset.selected) ? preset.selected : [],
+            }),
+          )
+          .filter((preset) => preset.id)
+      : [];
+
+    if (presets.length) {
+      const activePresetId = presets.some((preset) => preset.id === parsed.activePresetId)
+        ? parsed.activePresetId
+        : presets[0].id;
+
+      return { activePresetId, presets };
+    }
+
+    const migratedPreset = createPreset({
+      id: "default",
+      name: "기본",
       saveText: typeof parsed.saveText === "string" ? parsed.saveText : "",
-      selected: Array.isArray(parsed.selected)
-        ? parsed.selected
-            .map((target) => ({ name: target.name, quantity: Number(target.quantity) }))
-            .filter((target) => itemByName.has(target.name) && target.quantity > 0)
-        : [],
+      selected: Array.isArray(parsed.selected) ? parsed.selected : [],
+    });
+
+    return {
+      activePresetId: migratedPreset.id,
+      presets: [migratedPreset],
     };
   } catch {
-    return { saveText: "", selected: [] };
+    return {
+      activePresetId: "default",
+      presets: [createPreset({ id: "default", name: "기본" })],
+    };
   }
 }
 
@@ -308,13 +351,33 @@ function RecipeTree({ itemName, ownedInventory, depth = 0, seen = new Set() }) {
 
 function App() {
   const savedState = useMemo(() => loadSavedState(), []);
-  const [saveText, setSaveText] = useState(savedState.saveText);
+  const [presets, setPresets] = useState(savedState.presets);
+  const [activePresetId, setActivePresetId] = useState(savedState.activePresetId);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(savedState.selected);
 
   useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify({ saveText, selected }));
-  }, [saveText, selected]);
+    window.localStorage.setItem(storageKey, JSON.stringify({ activePresetId, presets }));
+  }, [activePresetId, presets]);
+
+  const activePreset = presets.find((preset) => preset.id === activePresetId) || presets[0];
+  const saveText = activePreset?.saveText || "";
+  const selected = activePreset?.selected || [];
+
+  const updateActivePreset = (updater) => {
+    setPresets((current) =>
+      current.map((preset) => (preset.id === activePresetId ? { ...preset, ...updater(preset) } : preset)),
+    );
+  };
+
+  const setSaveText = (value) => {
+    updateActivePreset(() => ({ saveText: value }));
+  };
+
+  const setSelected = (updater) => {
+    updateActivePreset((preset) => ({
+      selected: typeof updater === "function" ? updater(preset.selected) : updater,
+    }));
+  };
 
   const parsedSave = useMemo(() => parseSaveFile(saveText), [saveText]);
 
@@ -369,12 +432,65 @@ function App() {
     setSelected((current) => current.filter((target) => target.name !== name));
   };
 
+  const addPreset = () => {
+    const id = `preset-${Date.now()}`;
+    const nextPreset = createPreset({
+      id,
+      name: `프리셋 ${presets.length + 1}`,
+    });
+
+    setPresets((current) => [...current, nextPreset]);
+    setActivePresetId(id);
+    setQuery("");
+  };
+
+  const renamePreset = (name) => {
+    updateActivePreset(() => ({ name }));
+  };
+
+  const deletePreset = () => {
+    if (presets.length <= 1) return;
+
+    const nextPresets = presets.filter((preset) => preset.id !== activePresetId);
+    setPresets(nextPresets);
+    setActivePresetId(nextPresets[0].id);
+    setQuery("");
+  };
+
   return (
     <main>
       <header className="topbar">
         <div>
           <p className="eyebrow">TWRPG Helper</p>
           <h1>아이템 제작 재료 계산기</h1>
+        </div>
+        <div className="preset-controls">
+          <select
+            value={activePresetId}
+            onChange={(event) => {
+              setActivePresetId(event.target.value);
+              setQuery("");
+            }}
+            aria-label="프리셋 선택"
+          >
+            {presets.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.name || "이름 없음"}
+              </option>
+            ))}
+          </select>
+          <input
+            value={activePreset?.name || ""}
+            onChange={(event) => renamePreset(event.target.value)}
+            aria-label="프리셋 이름"
+            placeholder="프리셋 이름"
+          />
+          <button type="button" onClick={addPreset}>
+            새 프리셋
+          </button>
+          <button type="button" onClick={deletePreset} disabled={presets.length <= 1}>
+            삭제
+          </button>
         </div>
         <div className="summary-strip">
           <span>보유 {parsedSave.total}</span>
