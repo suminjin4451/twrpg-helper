@@ -318,7 +318,8 @@ small {
   box-shadow: 0 18px 45px rgb(15 23 42 / 18%);
   color: #172033;
   text-align: left;
-  pointer-events: none;
+  overscroll-behavior: contain;
+  pointer-events: auto;
 }
 
 .stats-tooltip > strong {

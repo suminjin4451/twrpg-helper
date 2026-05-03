@@ -409,6 +409,7 @@ function App() {
   const [activePresetId, setActivePresetId] = useState(savedState.activePresetId);
   const [query, setQuery] = useState("");
   const [hoveredStats, setHoveredStats] = useState(null);
+  const [hideStatsTimerId, setHideStatsTimerId] = useState(null);
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify({ activePresetId, presets }));
@@ -417,8 +418,9 @@ function App() {
   useEffect(() => {
     return () => {
       if (hoveredStats?.timerId) window.clearTimeout(hoveredStats.timerId);
+      if (hideStatsTimerId) window.clearTimeout(hideStatsTimerId);
     };
-  }, [hoveredStats]);
+  }, [hoveredStats, hideStatsTimerId]);
 
   const activePreset = presets.find((preset) => preset.id === activePresetId) || presets[0];
   const saveText = activePreset?.saveText || "";
@@ -494,6 +496,11 @@ function App() {
   };
 
   const showStatsLater = (item, event) => {
+    if (hideStatsTimerId) {
+      window.clearTimeout(hideStatsTimerId);
+      setHideStatsTimerId(null);
+    }
+
     const position = getTooltipPosition(event.currentTarget);
     const timerId = window.setTimeout(() => {
       setHoveredStats({ item, position, timerId: null });
@@ -506,10 +513,35 @@ function App() {
   };
 
   const hideStats = () => {
+    const timerId = window.setTimeout(() => {
+      setHoveredStats((current) => {
+        if (current?.timerId) window.clearTimeout(current.timerId);
+        return null;
+      });
+      setHideStatsTimerId(null);
+    }, 180);
+
+    setHideStatsTimerId((current) => {
+      if (current) window.clearTimeout(current);
+      return timerId;
+    });
+  };
+
+  const keepStatsOpen = () => {
+    if (!hideStatsTimerId) return;
+    window.clearTimeout(hideStatsTimerId);
+    setHideStatsTimerId(null);
+  };
+
+  const hideStatsImmediately = () => {
     setHoveredStats((current) => {
       if (current?.timerId) window.clearTimeout(current.timerId);
       return null;
     });
+    if (hideStatsTimerId) {
+      window.clearTimeout(hideStatsTimerId);
+      setHideStatsTimerId(null);
+    }
   };
 
   const addPreset = () => {
@@ -778,6 +810,8 @@ function App() {
             top: `${hoveredStats.position.top}px`,
             width: `${hoveredStats.position.width}px`,
           }}
+          onMouseEnter={keepStatsOpen}
+          onMouseLeave={hideStatsImmediately}
         >
           <ItemStatsContent item={hoveredStats.item} />
         </div>
