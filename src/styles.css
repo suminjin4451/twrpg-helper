@@ -253,7 +253,6 @@ textarea:focus {
   border-radius: 8px;
   background: #ffffff;
   color: inherit;
-  position: relative;
   text-align: left;
 }
 
@@ -267,6 +266,20 @@ textarea:focus {
   overflow-wrap: anywhere;
 }
 
+.item-name-hover {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 4px;
+  outline: none;
+}
+
+.item-name-hover:hover,
+.item-name-hover:focus-visible {
+  color: #1d4ed8;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .rank,
 small {
   color: #64748b;
@@ -277,8 +290,7 @@ small {
   border: 1px solid #dbe2ec;
   border-radius: 8px;
   background: #fbfcff;
-  overflow: visible;
-  position: relative;
+  overflow: hidden;
 }
 
 .target-card.target-ready {
@@ -292,11 +304,10 @@ small {
 }
 
 .stats-tooltip {
-  position: absolute;
-  left: 12px;
-  top: calc(100% + 8px);
-  z-index: 30;
-  display: none;
+  position: fixed;
+  z-index: 1000;
+  display: grid;
+  gap: 10px;
   width: min(360px, 82vw);
   max-height: 360px;
   overflow: auto;
@@ -307,18 +318,7 @@ small {
   box-shadow: 0 18px 45px rgb(15 23 42 / 18%);
   color: #172033;
   text-align: left;
-}
-
-.item-card:hover .stats-tooltip,
-.item-card:focus-visible .stats-tooltip,
-.target-card:hover > .stats-tooltip,
-.target-card:focus-within > .stats-tooltip {
-  display: grid;
-  gap: 10px;
-}
-
-.target-card > .stats-tooltip {
-  top: 44px;
+  pointer-events: none;
 }
 
 .stats-tooltip > strong {

@@ -323,12 +323,12 @@ function formatStatValue(value) {
   return String(value);
 }
 
-function ItemStatsTooltip({ item }) {
+function ItemStatsContent({ item }) {
   const stats = item?.stats || {};
   const entries = Object.entries(stats);
 
   return (
-    <div className="stats-tooltip" role="tooltip">
+    <>
       <strong>Stats</strong>
       {entries.length ? (
         <div className="stats-list">
@@ -350,8 +350,18 @@ function ItemStatsTooltip({ item }) {
       ) : (
         <p>stats 정보 없음</p>
       )}
-    </div>
+    </>
   );
+}
+
+function getTooltipPosition(anchor) {
+  const rect = anchor.getBoundingClientRect();
+  const width = Math.min(360, window.innerWidth - 24);
+  const left = Math.min(Math.max(rect.right + 10, 12), window.innerWidth - width - 12);
+  const below = rect.bottom + 8;
+  const top = below + 260 > window.innerHeight ? Math.max(12, rect.top - 270) : below;
+
+  return { left, top, width };
 }
 
 function RecipeTree({ itemName, ownedInventory, depth = 0, seen = new Set() }) {
@@ -398,10 +408,17 @@ function App() {
   const [presets, setPresets] = useState(savedState.presets);
   const [activePresetId, setActivePresetId] = useState(savedState.activePresetId);
   const [query, setQuery] = useState("");
+  const [hoveredStats, setHoveredStats] = useState(null);
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify({ activePresetId, presets }));
   }, [activePresetId, presets]);
+
+  useEffect(() => {
+    return () => {
+      if (hoveredStats?.timerId) window.clearTimeout(hoveredStats.timerId);
+    };
+  }, [hoveredStats]);
 
   const activePreset = presets.find((preset) => preset.id === activePresetId) || presets[0];
   const saveText = activePreset?.saveText || "";
@@ -474,6 +491,25 @@ function App() {
 
   const removeTarget = (name) => {
     setSelected((current) => current.filter((target) => target.name !== name));
+  };
+
+  const showStatsLater = (item, event) => {
+    const position = getTooltipPosition(event.currentTarget);
+    const timerId = window.setTimeout(() => {
+      setHoveredStats({ item, position, timerId: null });
+    }, 300);
+
+    setHoveredStats((current) => {
+      if (current?.timerId) window.clearTimeout(current.timerId);
+      return { item, position, timerId };
+    });
+  };
+
+  const hideStats = () => {
+    setHoveredStats((current) => {
+      if (current?.timerId) window.clearTimeout(current.timerId);
+      return null;
+    });
   };
 
   const addPreset = () => {
@@ -580,13 +616,26 @@ function App() {
 
           <div className="item-grid">
             {filteredItems.map((item) => (
-              <button key={item.id} type="button" className="item-card" onClick={() => addTarget(item)}>
+              <button
+                key={item.id}
+                type="button"
+                className="item-card"
+                onClick={() => addTarget(item)}
+              >
                 <span className="rank" style={{ color: `#${item.color || "4b5563"}` }}>
                   {item.rank === "none" ? item.type : item.rank}
                 </span>
-                <strong>{item.name}</strong>
+                <strong
+                  className="item-name-hover"
+                  onMouseEnter={(event) => showStatsLater(item, event)}
+                  onMouseLeave={hideStats}
+                  onFocus={(event) => showStatsLater(item, event)}
+                  onBlur={hideStats}
+                  tabIndex="0"
+                >
+                  {item.name}
+                </strong>
                 <small>{item.koreanname || "한글 이름 없음"}</small>
-                <ItemStatsTooltip item={item} />
               </button>
             ))}
           </div>
@@ -602,11 +651,22 @@ function App() {
               const item = itemByName.get(target.name);
               const isTargetReady = canSatisfyItem(target.name, target.quantity, parsedSave.inventory);
               return (
-                <article key={target.name} className={`target-card ${isTargetReady ? "target-ready" : ""}`}>
-                  <ItemStatsTooltip item={item} />
+                <article
+                  key={target.name}
+                  className={`target-card ${isTargetReady ? "target-ready" : ""}`}
+                >
                   <div className="target-title">
                     <div>
-                      <strong>{target.name}</strong>
+                      <strong
+                        className="item-name-hover"
+                        onMouseEnter={(event) => showStatsLater(item, event)}
+                        onMouseLeave={hideStats}
+                        onFocus={(event) => showStatsLater(item, event)}
+                        onBlur={hideStats}
+                        tabIndex="0"
+                      >
+                        {target.name}
+                      </strong>
                       <small>{item?.koreanname}</small>
                     </div>
                     <div className="target-actions">
@@ -709,6 +769,19 @@ function App() {
           {!selected.length && <p className="empty">목표 아이템을 추가하면 비교 결과가 여기에 표시됩니다.</p>}
         </div>
       </section>
+
+      {hoveredStats && !hoveredStats.timerId && (
+        <div
+          className="stats-tooltip stats-tooltip-floating"
+          style={{
+            left: `${hoveredStats.position.left}px`,
+            top: `${hoveredStats.position.top}px`,
+            width: `${hoveredStats.position.width}px`,
+          }}
+        >
+          <ItemStatsContent item={hoveredStats.item} />
+        </div>
+      )}
     </main>
   );
 }
