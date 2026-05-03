@@ -319,23 +319,41 @@ small {
   font-weight: 700;
 }
 
-.missing-panel {
+.missing-panel,
+.discard-panel {
   min-height: auto;
   margin: 0 16px;
 }
 
-.missing-head {
+.discard-panel {
+  margin-top: 16px;
+}
+
+.missing-head,
+.discard-head {
   align-items: flex-start;
 }
 
-.missing-head > div:first-child {
+.missing-head > div:first-child,
+.discard-head > div:first-child {
   display: grid;
   gap: 3px;
 }
 
-.missing-head p {
+.missing-head p,
+.discard-head p {
   color: #64748b;
   font-size: 13px;
+}
+
+.discard-head > span {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .coin-summary {
@@ -416,6 +434,40 @@ small {
   padding: 10px;
 }
 
+.discard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  padding: 16px;
+}
+
+.discard-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 11px;
+  border: 1px solid #e4e9f2;
+  border-radius: 8px;
+  background: #fbfcff;
+  font-size: 14px;
+}
+
+.discard-row div {
+  display: grid;
+  min-width: 0;
+}
+
+.discard-row strong {
+  overflow-wrap: anywhere;
+}
+
+.discard-row span {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-weight: 700;
+}
+
 .empty {
   padding: 14px;
   color: #64748b;
@@ -456,11 +508,17 @@ small {
     padding: 10px;
   }
 
-  .missing-panel {
+  .missing-panel,
+  .discard-panel {
     margin: 0 10px;
   }
 
-  .boss-grid {
+  .discard-panel {
+    margin-top: 10px;
+  }
+
+  .boss-grid,
+  .discard-grid {
     grid-template-columns: 1fr;
     padding: 10px;
   }

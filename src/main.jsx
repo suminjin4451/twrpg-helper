@@ -132,6 +132,55 @@ function calculateMissing(selected, ownedInventory) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+function calculateConsumedInventory(selected, ownedInventory) {
+  const available = new Map(ownedInventory);
+  const consumed = new Map();
+
+  const requireItem = (name, count) => {
+    if (count <= 0) return;
+
+    const owned = available.get(name) || 0;
+    const used = Math.min(owned, count);
+    if (used > 0) {
+      available.set(name, owned - used);
+      consumed.set(name, (consumed.get(name) || 0) + used);
+    }
+
+    const needed = count - used;
+    if (needed <= 0) return;
+
+    const item = itemByName.get(name);
+    const recipe = flattenRecipe(item?.recipe);
+
+    if (!recipe.length || shouldStopDecomposing(item)) return;
+
+    for (const ingredient of recipe) {
+      requireItem(ingredient.name, ingredient.count * needed);
+    }
+  };
+
+  for (const target of selected) {
+    requireItem(target.name, target.quantity);
+  }
+
+  return consumed;
+}
+
+function calculateDiscardableItems(selected, ownedInventory) {
+  if (!selected.length) return [];
+
+  const consumed = calculateConsumedInventory(selected, ownedInventory);
+
+  return [...ownedInventory.entries()]
+    .map(([name, count]) => ({
+      item: itemByName.get(name),
+      name,
+      count: count - (consumed.get(name) || 0),
+    }))
+    .filter((entry) => entry.count > 0)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 function canSatisfyItem(name, count, ownedInventory) {
   const available = new Map(ownedInventory);
 
@@ -289,6 +338,10 @@ function App() {
   );
   const missingGroups = useMemo(() => groupMissingBySource(missingMaterials), [missingMaterials]);
   const coinSummary = useMemo(() => calculateCoinSummary(missingMaterials), [missingMaterials]);
+  const discardableItems = useMemo(
+    () => calculateDiscardableItems(selected, parsedSave.inventory),
+    [selected, parsedSave.inventory],
+  );
 
   const selectedCount = selected.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -465,6 +518,33 @@ function App() {
             <p className="empty">현재 보유 재료로 제작 가능합니다.</p>
           )}
           {!selected.length && <p className="empty">목표 아이템을 추가하면 필요한 재료가 여기에 표시됩니다.</p>}
+        </div>
+      </section>
+
+      <section className="panel discard-panel">
+        <div className="panel-head discard-head">
+          <div>
+            <h2>버려도 되는 아이템</h2>
+            <p>현재 목표 아이템 제작에 사용되지 않는 보유 아이템입니다.</p>
+          </div>
+          <span>{discardableItems.length}종</span>
+        </div>
+
+        <div className="discard-grid">
+          {discardableItems.map(({ name, count, item }) => (
+            <div key={name} className="discard-row">
+              <div>
+                <strong>{name}</strong>
+                <small>{item?.koreanname || item?.type || "데이터 없음"}</small>
+              </div>
+              <span>x{count}</span>
+            </div>
+          ))}
+
+          {selected.length > 0 && !discardableItems.length && (
+            <p className="empty">현재 보유 아이템이 모두 목표 제작에 사용됩니다.</p>
+          )}
+          {!selected.length && <p className="empty">목표 아이템을 추가하면 비교 결과가 여기에 표시됩니다.</p>}
         </div>
       </section>
     </main>
