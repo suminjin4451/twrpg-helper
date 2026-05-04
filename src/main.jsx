@@ -19,12 +19,20 @@ const coinSeriesNames = new Set([
 ]);
 const purchasableCoinNames = ["Prius Silver Coin", "Prius Gold Coin", "Prius Platinum Coin"];
 const storageKey = "twrpg-helper-state";
+const themeStorageKey = "twrpg-helper-theme";
+const fileApi = typeof window !== "undefined" ? window.twrpgFileApi : null;
 
-function createPreset({ id, name, saveText = "", selected = [] }) {
+function loadSavedTheme() {
+  if (typeof window === "undefined") return "light";
+  return window.localStorage.getItem(themeStorageKey) === "dark" ? "dark" : "light";
+}
+
+function createPreset({ id, name, saveText = "", saveFilePath = "", selected = [] }) {
   return {
     id,
     name,
     saveText,
+    saveFilePath,
     selected: selected
       .map((target) => ({ name: target.name, quantity: Number(target.quantity) }))
       .filter((target) => itemByName.has(target.name) && target.quantity > 0),
@@ -48,6 +56,7 @@ function loadSavedState() {
               id: typeof preset.id === "string" ? preset.id : `preset-${index + 1}`,
               name: typeof preset.name === "string" && preset.name.trim() ? preset.name.trim() : `프리셋 ${index + 1}`,
               saveText: typeof preset.saveText === "string" ? preset.saveText : "",
+              saveFilePath: typeof preset.saveFilePath === "string" ? preset.saveFilePath : "",
               selected: Array.isArray(preset.selected) ? preset.selected : [],
             }),
           )
@@ -66,6 +75,7 @@ function loadSavedState() {
       id: "default",
       name: "기본",
       saveText: typeof parsed.saveText === "string" ? parsed.saveText : "",
+      saveFilePath: typeof parsed.saveFilePath === "string" ? parsed.saveFilePath : "",
       selected: Array.isArray(parsed.selected) ? parsed.selected : [],
     });
 
@@ -453,10 +463,16 @@ function App() {
   const [query, setQuery] = useState("");
   const [hoveredStats, setHoveredStats] = useState(null);
   const [hideStatsTimerId, setHideStatsTimerId] = useState(null);
+  const [theme, setTheme] = useState(() => loadSavedTheme());
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify({ activePresetId, presets }));
   }, [activePresetId, presets]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem(themeStorageKey, theme);
+  }, [theme]);
 
   useEffect(() => {
     return () => {
@@ -467,6 +483,7 @@ function App() {
 
   const activePreset = presets.find((preset) => preset.id === activePresetId) || presets[0];
   const saveText = activePreset?.saveText || "";
+  const saveFilePath = activePreset?.saveFilePath || "";
   const selected = activePreset?.selected || [];
 
   const updateActivePreset = (updater) => {
@@ -477,6 +494,10 @@ function App() {
 
   const setSaveText = (value) => {
     updateActivePreset(() => ({ saveText: value }));
+  };
+
+  const setSaveFile = ({ path = "", text = "" }) => {
+    updateActivePreset(() => ({ saveFilePath: path, saveText: text }));
   };
 
   const setSelected = (updater) => {
@@ -537,6 +558,28 @@ function App() {
 
   const removeTarget = (name) => {
     setSelected((current) => current.filter((target) => target.name !== name));
+  };
+
+  const selectSaveFile = async () => {
+    if (!fileApi) return;
+
+    try {
+      const result = await fileApi.selectSaveFile();
+      if (result) setSaveFile(result);
+    } catch (error) {
+      window.alert(`파일을 읽지 못했습니다: ${error.message}`);
+    }
+  };
+
+  const refreshSaveFile = async () => {
+    if (!fileApi || !saveFilePath) return;
+
+    try {
+      const result = await fileApi.readSaveFile(saveFilePath);
+      setSaveFile(result);
+    } catch (error) {
+      window.alert(`파일을 다시 읽지 못했습니다: ${error.message}`);
+    }
   };
 
   const showStatsLater = (item, event) => {
@@ -620,6 +663,13 @@ function App() {
           <p className="eyebrow">TWRPG Helper</p>
           <h1>아이템 제작 재료 계산기</h1>
         </div>
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+        >
+          {theme === "dark" ? "Light" : "Dark"}
+        </button>
         <div className="preset-controls">
           <select
             value={activePresetId}
@@ -658,10 +708,25 @@ function App() {
       <section className="workspace">
         <aside className="panel save-panel">
           <div className="panel-head">
-            <h2>세이브 파일</h2>
-            <button type="button" onClick={() => setSaveText("")}>
-              초기화
-            </button>
+            <div>
+              <h2>세이브 파일</h2>
+              {fileApi && saveFilePath && <small>{saveFilePath}</small>}
+            </div>
+            <div className="save-actions">
+              {fileApi && (
+                <>
+                  <button type="button" onClick={selectSaveFile}>
+                    파일 선택
+                  </button>
+                  <button type="button" onClick={refreshSaveFile} disabled={!saveFilePath}>
+                    새로고침
+                  </button>
+                </>
+              )}
+              <button type="button" onClick={() => setSaveText("")}>
+                초기화
+              </button>
+            </div>
           </div>
           <textarea
             value={saveText}

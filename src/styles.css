@@ -87,6 +87,16 @@ h3 {
   text-align: center;
 }
 
+.theme-toggle {
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font-weight: 800;
+}
+
 .preset-controls {
   display: grid;
   grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) auto auto;
@@ -156,12 +166,38 @@ h3 {
   border-bottom: 1px solid #e4e9f2;
 }
 
+.panel-head > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.panel-head > div:first-child small {
+  overflow: hidden;
+  color: #64748b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .panel-head button {
   border: 1px solid #cbd5e1;
   border-radius: 7px;
   background: #f8fafc;
   color: #475569;
   padding: 7px 10px;
+}
+
+.panel-head button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.save-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
 textarea {
@@ -731,4 +767,118 @@ small {
   .item-grid {
     max-height: none;
   }
+}
+
+:root[data-theme="dark"] {
+  color: #e5e7eb;
+  background: #0f172a;
+}
+
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] main {
+  background: #0f172a;
+}
+
+:root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .panel,
+:root[data-theme="dark"] .boss-card,
+:root[data-theme="dark"] .discard-section,
+:root[data-theme="dark"] .target-card,
+:root[data-theme="dark"] .item-card,
+:root[data-theme="dark"] .stats-tooltip {
+  border-color: #334155;
+  background: #111827;
+  color: #e5e7eb;
+}
+
+:root[data-theme="dark"] .panel-head,
+:root[data-theme="dark"] .boss-card-head,
+:root[data-theme="dark"] .discard-section-head {
+  border-color: #334155;
+  background: #182235;
+}
+
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] .search-panel input,
+:root[data-theme="dark"] .preset-controls select,
+:root[data-theme="dark"] .preset-controls input {
+  border-color: #475569;
+  background: #0b1220;
+  color: #e5e7eb;
+}
+
+:root[data-theme="dark"] textarea {
+  border-bottom-color: #334155;
+}
+
+:root[data-theme="dark"] button,
+:root[data-theme="dark"] .panel-head button,
+:root[data-theme="dark"] .preset-controls button,
+:root[data-theme="dark"] .theme-toggle {
+  border-color: #475569;
+  background: #1e293b;
+  color: #e5e7eb;
+}
+
+:root[data-theme="dark"] .summary-strip span,
+:root[data-theme="dark"] .coin-summary span,
+:root[data-theme="dark"] .boss-card-head > span,
+:root[data-theme="dark"] .discard-head > span,
+:root[data-theme="dark"] .discard-section-head > span {
+  border-color: #334155;
+  background: #0b1220;
+  color: #cbd5e1;
+}
+
+:root[data-theme="dark"] .inventory-row,
+:root[data-theme="dark"] .missing-row,
+:root[data-theme="dark"] .discard-row,
+:root[data-theme="dark"] .recipe-tree li,
+:root[data-theme="dark"] .empty {
+  border-color: #334155;
+  background: #0b1220;
+  color: #e5e7eb;
+}
+
+:root[data-theme="dark"] .target-card.target-ready,
+:root[data-theme="dark"] .recipe-tree li.recipe-ready {
+  border-color: #15803d;
+  background: #052e16;
+}
+
+:root[data-theme="dark"] .target-card.target-ready .target-title,
+:root[data-theme="dark"] .recipe-tree li > small {
+  background: #14532d;
+  color: #bbf7d0;
+}
+
+:root[data-theme="dark"] .target-actions button {
+  border-color: #7f1d1d;
+  background: #3f1212;
+  color: #fecaca;
+}
+
+:root[data-theme="dark"] .eyebrow,
+:root[data-theme="dark"] small,
+:root[data-theme="dark"] .missing-head p,
+:root[data-theme="dark"] .discard-head p,
+:root[data-theme="dark"] .panel-head > div:first-child small,
+:root[data-theme="dark"] .stats-tooltip p,
+:root[data-theme="dark"] .stats-entry > span {
+  color: #94a3b8;
+}
+
+:root[data-theme="dark"] .inventory-row strong,
+:root[data-theme="dark"] .missing-row span,
+:root[data-theme="dark"] .coin-summary strong,
+:root[data-theme="dark"] .stats-entry > small {
+  color: #5eead4;
+}
+
+:root[data-theme="dark"] .stats-entry {
+  border-bottom-color: #334155;
+}
+
+:root[data-theme="dark"] .stats-entry ul {
+  color: #e5e7eb;
 }
