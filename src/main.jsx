@@ -155,6 +155,11 @@ function parseInventoryItemLine(rawName) {
   };
 }
 
+function parseSaveClass(raw) {
+  const match = raw.match(/Preload\(\s*"Class:\s*([^"]+)"\s*\)/);
+  return match?.[1]?.trim() || "";
+}
+
 function flattenRecipe(recipe = []) {
   const result = [];
   for (const entry of recipe) {
@@ -596,6 +601,21 @@ function App() {
 
     try {
       const result = await fileApi.readSaveFile(saveFilePath);
+      const previousClass = parseSaveClass(saveText);
+      const nextClass = parseSaveClass(result.text);
+
+      if (saveText && previousClass && nextClass && previousClass !== nextClass) {
+        try {
+          await fileApi.backupSaveFile({
+            presetName: activePreset?.name || "preset",
+            text: saveText,
+          });
+        } catch (backupError) {
+          window.alert(`클래스 변경 감지 후 기존 세이브 백업에 실패했습니다: ${backupError.message}`);
+          return;
+        }
+      }
+
       setSaveFile(result);
     } catch (error) {
       window.alert(`파일을 다시 읽지 못했습니다: ${error.message}`);
