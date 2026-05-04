@@ -27,7 +27,7 @@ button {
 
 main {
   min-height: 100vh;
-  padding-bottom: 16px;
+  padding-bottom: 88px;
 }
 
 .topbar {
@@ -139,13 +139,13 @@ h3 {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(280px, 0.95fr) minmax(260px, 0.75fr) minmax(520px, 1.7fr);
+  grid-template-columns: minmax(260px, 0.75fr) minmax(720px, 2.25fr);
   gap: 16px;
   padding: 16px;
 }
 
 .panel {
-  min-height: calc(100vh - 128px);
+  min-height: calc(100vh - 268px);
   border: 1px solid #d7deea;
   border-radius: 8px;
   background: #ffffff;
@@ -179,7 +179,8 @@ h3 {
   white-space: nowrap;
 }
 
-.panel-head button {
+.panel-head button,
+.save-actions button {
   border: 1px solid #cbd5e1;
   border-radius: 7px;
   background: #f8fafc;
@@ -187,7 +188,8 @@ h3 {
   padding: 7px 10px;
 }
 
-.panel-head button:disabled {
+.panel-head button:disabled,
+.save-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
@@ -200,6 +202,50 @@ h3 {
   gap: 6px;
 }
 
+.save-strip {
+  display: grid;
+  gap: 0;
+  margin: 16px 16px 0;
+  border: 1px solid #d7deea;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.save-strip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e4e9f2;
+  background: #fbfcff;
+}
+
+.save-strip-head > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.save-strip-head strong {
+  font-size: 14px;
+}
+
+.save-strip-head small {
+  overflow: hidden;
+  color: #64748b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.save-strip textarea {
+  height: 86px;
+  min-height: 86px;
+  border-bottom: 0;
+  resize: vertical;
+}
+
 textarea {
   width: 100%;
   height: 260px;
@@ -210,6 +256,27 @@ textarea {
   resize: vertical;
   color: #1f2937;
   background: #fbfcff;
+}
+
+.floating-refresh {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 900;
+  width: 54px;
+  height: 54px;
+  border: 1px solid #0f766e;
+  border-radius: 999px;
+  background: #0f766e;
+  box-shadow: 0 18px 35px rgb(15 23 42 / 24%);
+  color: #ffffff;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.floating-refresh:hover {
+  background: #0d9488;
 }
 
 .search-panel input {
@@ -744,6 +811,15 @@ small {
     padding: 10px;
   }
 
+  .save-strip {
+    margin: 10px 10px 0;
+  }
+
+  .save-strip-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .missing-panel,
   .discard-panel {
     margin: 0 10px;
@@ -787,6 +863,7 @@ small {
 }
 
 :root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .save-strip,
 :root[data-theme="dark"] .panel,
 :root[data-theme="dark"] .boss-card,
 :root[data-theme="dark"] .discard-section,
@@ -799,6 +876,7 @@ small {
 }
 
 :root[data-theme="dark"] .panel-head,
+:root[data-theme="dark"] .save-strip-head,
 :root[data-theme="dark"] .boss-card-head,
 :root[data-theme="dark"] .discard-section-head {
   border-color: #334155;
@@ -806,6 +884,7 @@ small {
 }
 
 :root[data-theme="dark"] textarea,
+:root[data-theme="dark"] .save-strip textarea,
 :root[data-theme="dark"] .search-panel input,
 :root[data-theme="dark"] .preset-controls select,
 :root[data-theme="dark"] .preset-controls input {
@@ -820,11 +899,18 @@ small {
 
 :root[data-theme="dark"] button,
 :root[data-theme="dark"] .panel-head button,
+:root[data-theme="dark"] .save-actions button,
 :root[data-theme="dark"] .preset-controls button,
 :root[data-theme="dark"] .theme-toggle {
   border-color: #475569;
   background: #1e293b;
   color: #e5e7eb;
+}
+
+:root[data-theme="dark"] .floating-refresh {
+  border-color: #14b8a6;
+  background: #0f766e;
+  color: #ffffff;
 }
 
 :root[data-theme="dark"] .summary-strip span,
@@ -870,6 +956,7 @@ small {
 :root[data-theme="dark"] .missing-head p,
 :root[data-theme="dark"] .discard-head p,
 :root[data-theme="dark"] .panel-head > div:first-child small,
+:root[data-theme="dark"] .save-strip-head small,
 :root[data-theme="dark"] .stats-tooltip p,
 :root[data-theme="dark"] .stats-entry > span {
   color: #94a3b8;

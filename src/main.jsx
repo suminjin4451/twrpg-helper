@@ -745,46 +745,36 @@ function App() {
         </div>
       </header>
 
+      <section className="save-strip">
+        <div className="save-strip-head">
+          <div>
+            <strong>세이브 파일</strong>
+            <small>{fileApi && saveFilePath ? saveFilePath : "PreloadFiles 내용을 붙여넣거나 Electron 앱에서 파일을 선택하세요."}</small>
+          </div>
+          <div className="save-actions">
+            {fileApi && (
+              <>
+                <button type="button" onClick={selectSaveFile}>
+                  파일 선택
+                </button>
+                <button type="button" onClick={refreshSaveFile} disabled={!saveFilePath}>
+                  새로고침
+                </button>
+              </>
+            )}
+            <button type="button" onClick={() => setSaveText("")}>
+              초기화
+            </button>
+          </div>
+        </div>
+        <textarea
+          value={saveText}
+          onChange={(event) => setSaveText(event.target.value)}
+          placeholder="PreloadFiles 내용 전체를 붙여넣으세요."
+        />
+      </section>
+
       <section className="workspace">
-        <aside className="panel save-panel">
-          <div className="panel-head">
-            <div>
-              <h2>세이브 파일</h2>
-              {fileApi && saveFilePath && <small>{saveFilePath}</small>}
-            </div>
-            <div className="save-actions">
-              {fileApi && (
-                <>
-                  <button type="button" onClick={selectSaveFile}>
-                    파일 선택
-                  </button>
-                  <button type="button" onClick={refreshSaveFile} disabled={!saveFilePath}>
-                    새로고침
-                  </button>
-                </>
-              )}
-              <button type="button" onClick={() => setSaveText("")}>
-                초기화
-              </button>
-            </div>
-          </div>
-          <textarea
-            value={saveText}
-            onChange={(event) => setSaveText(event.target.value)}
-            placeholder="PreloadFiles 내용 전체를 붙여넣으세요."
-          />
-
-          <div className="inventory-list">
-            {[...parsedSave.inventory.entries()].map(([name, count]) => (
-              <div key={name} className="inventory-row">
-                <span>{name}</span>
-                <strong>{count}</strong>
-              </div>
-            ))}
-            {!parsedSave.total && <p className="empty">아직 파싱된 아이템이 없습니다.</p>}
-          </div>
-        </aside>
-
         <section className="panel search-panel">
           <div className="panel-head">
             <h2>목표 아이템 검색</h2>
@@ -871,6 +861,12 @@ function App() {
           </div>
         </aside>
       </section>
+
+      {fileApi && saveFilePath && (
+        <button type="button" className="floating-refresh" onClick={refreshSaveFile} aria-label="세이브 파일 새로고침">
+          ↻
+        </button>
+      )}
 
       <section className="panel missing-panel">
         <div className="panel-head missing-head">
