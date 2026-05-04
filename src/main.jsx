@@ -127,15 +127,31 @@ function parseSaveFile(raw) {
     const itemMatch = line.match(/^\d+\.\s*(.+)$/);
     if (!itemMatch) continue;
 
-    const itemName = itemMatch[1].trim();
+    const parsedItem = parseInventoryItemLine(itemMatch[1]);
+    const { name: itemName, count } = parsedItem;
     sections[activeSection].push(itemName);
-    inventory.set(itemName, (inventory.get(itemName) || 0) + 1);
+    inventory.set(itemName, (inventory.get(itemName) || 0) + count);
   }
 
   return {
     inventory,
     sections,
     total: [...inventory.values()].reduce((sum, count) => sum + count, 0),
+  };
+}
+
+function parseInventoryItemLine(rawName) {
+  const trimmed = rawName.trim();
+  const quantityMatch = trimmed.match(/^(.*?)\s+x(\d+)$/i);
+
+  if (!quantityMatch) return { name: trimmed, count: 1 };
+
+  const name = quantityMatch[1].trim();
+  const count = Number(quantityMatch[2]);
+
+  return {
+    name,
+    count: Number.isFinite(count) && count > 0 ? count : 1,
   };
 }
 
@@ -337,7 +353,7 @@ function groupMissingBySource(missingMaterials) {
   });
 }
 
-function calculateCoinSummary(missingMaterials) {
+function calculateCoinSummary(missingMaterials, ownedInventory) {
   const summary = new Map(purchasableCoinNames.map((name) => [name, 0]));
 
   for (const material of missingMaterials) {
@@ -359,7 +375,8 @@ function calculateCoinSummary(missingMaterials) {
   return purchasableCoinNames.map((name) => ({
     name,
     koreanname: itemByName.get(name)?.koreanname,
-    count: summary.get(name) || 0,
+    needed: summary.get(name) || 0,
+    owned: ownedInventory.get(name) || 0,
   }));
 }
 
@@ -527,7 +544,10 @@ function App() {
     [selected, parsedSave.inventory],
   );
   const missingGroups = useMemo(() => groupMissingBySource(missingMaterials), [missingMaterials]);
-  const coinSummary = useMemo(() => calculateCoinSummary(missingMaterials), [missingMaterials]);
+  const coinSummary = useMemo(
+    () => calculateCoinSummary(missingMaterials, parsedSave.inventory),
+    [missingMaterials, parsedSave.inventory],
+  );
   const discardableItems = useMemo(
     () => calculateDiscardableItems(selected, parsedSave.inventory),
     [selected, parsedSave.inventory],
@@ -842,7 +862,8 @@ function App() {
             {coinSummary.map((coin) => (
               <span key={coin.name}>
                 <small>{coin.koreanname}</small>
-                <strong>x{coin.count}</strong>
+                <strong>필요 x{coin.needed}</strong>
+                <em>보유 x{coin.owned}</em>
               </span>
             ))}
           </div>
