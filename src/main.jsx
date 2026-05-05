@@ -498,6 +498,7 @@ function App() {
   const [hoveredStats, setHoveredStats] = useState(null);
   const [hideStatsTimerId, setHideStatsTimerId] = useState(null);
   const [copiedLoadCodeId, setCopiedLoadCodeId] = useState("");
+  const [isTypingLoadCodes, setIsTypingLoadCodes] = useState(false);
   const [theme, setTheme] = useState(() => loadSavedTheme());
 
   useEffect(() => {
@@ -573,6 +574,7 @@ function App() {
   const discardableGroups = useMemo(() => groupDiscardableItems(discardableItems), [discardableItems]);
 
   const selectedCount = selected.reduce((sum, item) => sum + item.quantity, 0);
+  const canAutoTypeLoadCodes = fileApi?.platform === "win32" && typeof fileApi.typeLoadCodes === "function";
 
   const addTarget = (item) => {
     setSelected((current) => {
@@ -732,6 +734,29 @@ function App() {
     }
   };
 
+  const typeLoadCodesToWarcraft = async () => {
+    if (!canAutoTypeLoadCodes || isTypingLoadCodes || !parsedSave.loadCodes.length) return;
+
+    const confirmed = window.confirm(
+      "Warcraft 3 창을 활성화한 뒤 로드 코드를 자동 입력합니다.\n입력 중에는 키보드와 마우스를 조작하지 마세요.",
+    );
+    if (!confirmed) return;
+
+    setIsTypingLoadCodes(true);
+    try {
+      await fileApi.typeLoadCodes({
+        codes: parsedSave.loadCodes.map((loadCode) => loadCode.code),
+        windowTitle: "Warcraft",
+        startDelayMs: 1200,
+        delayMs: 350,
+      });
+    } catch (error) {
+      window.alert(`로드 코드 자동 입력에 실패했습니다: ${error.message}`);
+    } finally {
+      setIsTypingLoadCodes(false);
+    }
+  };
+
   return (
     <main>
       <header className="topbar">
@@ -812,8 +837,20 @@ function App() {
 
       <section className="load-code-strip" aria-label="로드 코드">
         <div className="load-code-head">
-          <strong>로드 코드</strong>
-          <small>{parsedSave.loadCodes.length ? `${parsedSave.loadCodes.length}개 감지됨` : "세이브 텍스트에서 Load Code를 찾지 못했습니다."}</small>
+          <div>
+            <strong>로드 코드</strong>
+            <small>{parsedSave.loadCodes.length ? `${parsedSave.loadCodes.length}개 감지됨` : "세이브 텍스트에서 Load Code를 찾지 못했습니다."}</small>
+          </div>
+          {canAutoTypeLoadCodes && (
+            <button
+              type="button"
+              className="auto-type-button"
+              onClick={typeLoadCodesToWarcraft}
+              disabled={isTypingLoadCodes || !parsedSave.loadCodes.length}
+            >
+              {isTypingLoadCodes ? "입력 중" : "Warcraft 3 자동 입력"}
+            </button>
+          )}
         </div>
         <div className="load-code-list">
           {parsedSave.loadCodes.map((loadCode) => (

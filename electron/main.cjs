@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { execFile } = require("node:child_process");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 
@@ -49,6 +50,24 @@ function createWindow() {
   }
 }
 
+function runPowerShell(script) {
+  return new Promise((resolve, reject) => {
+    execFile(
+      "powershell.exe",
+      ["-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-Command", script],
+      { windowsHide: true, timeout: 30000 },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(new Error(stderr?.trim() || error.message));
+          return;
+        }
+
+        resolve(stdout);
+      },
+    );
+  });
+}
+
 ipcMain.handle("save-file:select", async () => {
   const result = await dialog.showOpenDialog({
     title: "세이브 txt 파일 선택",
@@ -89,6 +108,72 @@ ipcMain.handle("save-file:backup", async (_event, { presetName, text }) => {
   await fs.writeFile(filePath, text, "utf8");
 
   return { path: filePath };
+});
+
+ipcMain.handle("load-code:type", async (_event, payload = {}) => {
+  if (process.platform !== "win32") {
+    throw new Error("Load code auto input is only available on Windows.");
+  }
+
+  const codes = Array.isArray(payload.codes)
+    ? payload.codes.map((code) => String(code || "").trim()).filter(Boolean)
+    : [];
+
+  if (!codes.length) {
+    throw new Error("No load codes were provided.");
+  }
+
+  const delayMs = Math.max(80, Math.min(Number(payload.delayMs) || 350, 3000));
+  const startDelayMs = Math.max(0, Math.min(Number(payload.startDelayMs) || 1200, 10000));
+  const windowTitle = String(payload.windowTitle || "Warcraft").trim() || "Warcraft";
+  const encodedPayload = Buffer.from(
+    JSON.stringify({ codes, delayMs, startDelayMs, windowTitle }),
+    "utf8",
+  ).toString("base64");
+
+  const script = `
+$payloadJson = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${encodedPayload}'))
+$payload = $payloadJson | ConvertFrom-Json
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public static class TWRPGWin32 {
+  [DllImport("user32.dll")]
+  public static extern bool SetForegroundWindow(IntPtr hWnd);
+  [DllImport("user32.dll")]
+  public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+}
+"@
+$target = Get-Process | Where-Object {
+  $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -match [regex]::Escape($payload.windowTitle)
+} | Select-Object -First 1
+if (-not $target) {
+  $target = Get-Process | Where-Object {
+    $_.MainWindowHandle -ne 0 -and ($_.MainWindowTitle -match 'Warcraft|War3|Frozen Throne|Reforged')
+  } | Select-Object -First 1
+}
+if (-not $target) {
+  throw "Warcraft 3 window was not found."
+}
+[TWRPGWin32]::ShowWindowAsync($target.MainWindowHandle, 9) | Out-Null
+[TWRPGWin32]::SetForegroundWindow($target.MainWindowHandle) | Out-Null
+Start-Sleep -Milliseconds ([int]$payload.startDelayMs)
+foreach ($code in @($payload.codes)) {
+  [System.Windows.Forms.Clipboard]::SetText([string]$code)
+  [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+  Start-Sleep -Milliseconds ([int]$payload.delayMs)
+  [System.Windows.Forms.SendKeys]::SendWait("^v")
+  Start-Sleep -Milliseconds ([int]$payload.delayMs)
+  [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+  Start-Sleep -Milliseconds ([int]$payload.delayMs)
+}
+Write-Output "typed"
+`;
+
+  await runPowerShell(script);
+  return { typed: codes.length };
 });
 
 app.whenReady().then(() => {
