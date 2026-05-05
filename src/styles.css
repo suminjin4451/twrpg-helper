@@ -298,6 +298,33 @@ h3 {
   background: #0d9488;
 }
 
+.auto-type-controls {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.auto-type-controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.auto-type-controls input {
+  width: 82px;
+  padding: 7px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #172033;
+  font-weight: 800;
+}
+
 .load-code-list {
   display: grid;
   gap: 8px;
@@ -919,6 +946,17 @@ small {
     width: 100%;
   }
 
+  .auto-type-controls {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .auto-type-controls label {
+    justify-content: space-between;
+    width: 100%;
+  }
+
   .load-code-row {
     grid-template-columns: 1fr auto;
   }
@@ -997,7 +1035,8 @@ small {
 :root[data-theme="dark"] .save-strip textarea,
 :root[data-theme="dark"] .search-panel input,
 :root[data-theme="dark"] .preset-controls select,
-:root[data-theme="dark"] .preset-controls input {
+:root[data-theme="dark"] .preset-controls input,
+:root[data-theme="dark"] .auto-type-controls input {
   border-color: #475569;
   background: #0b1220;
   color: #e5e7eb;
@@ -1078,6 +1117,7 @@ small {
 :root[data-theme="dark"] .save-strip-head small,
 :root[data-theme="dark"] .load-code-head small,
 :root[data-theme="dark"] .load-code-row span,
+:root[data-theme="dark"] .auto-type-controls label,
 :root[data-theme="dark"] .stats-tooltip p,
 :root[data-theme="dark"] .stats-entry > span {
   color: #94a3b8;

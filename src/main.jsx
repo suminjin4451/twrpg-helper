@@ -20,11 +20,18 @@ const coinSeriesNames = new Set([
 const purchasableCoinNames = ["Prius Silver Coin", "Prius Gold Coin", "Prius Platinum Coin"];
 const storageKey = "twrpg-helper-state";
 const themeStorageKey = "twrpg-helper-theme";
+const autoInputDelayStorageKey = "twrpg-helper-auto-input-delay-ms";
 const fileApi = typeof window !== "undefined" ? window.twrpgFileApi : null;
 
 function loadSavedTheme() {
   if (typeof window === "undefined") return "light";
   return window.localStorage.getItem(themeStorageKey) === "dark" ? "dark" : "light";
+}
+
+function loadSavedAutoInputDelayMs() {
+  if (typeof window === "undefined") return 700;
+  const parsed = Number(window.localStorage.getItem(autoInputDelayStorageKey));
+  return Number.isFinite(parsed) && parsed >= 80 && parsed <= 3000 ? parsed : 700;
 }
 
 function createPreset({ id, name, saveText = "", saveFilePath = "", selected = [] }) {
@@ -499,6 +506,7 @@ function App() {
   const [hideStatsTimerId, setHideStatsTimerId] = useState(null);
   const [copiedLoadCodeId, setCopiedLoadCodeId] = useState("");
   const [isTypingLoadCodes, setIsTypingLoadCodes] = useState(false);
+  const [autoInputDelayMs, setAutoInputDelayMs] = useState(() => loadSavedAutoInputDelayMs());
   const [theme, setTheme] = useState(() => loadSavedTheme());
 
   useEffect(() => {
@@ -509,6 +517,10 @@ function App() {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem(themeStorageKey, theme);
   }, [theme]);
+
+  useEffect(() => {
+    window.localStorage.setItem(autoInputDelayStorageKey, String(autoInputDelayMs));
+  }, [autoInputDelayMs]);
 
   useEffect(() => {
     return () => {
@@ -748,7 +760,7 @@ function App() {
         codes: parsedSave.loadCodes.map((loadCode) => loadCode.code),
         windowTitle: "Warcraft",
         startDelayMs: 1200,
-        delayMs: 350,
+        delayMs: autoInputDelayMs,
       });
     } catch (error) {
       window.alert(`로드 코드 자동 입력에 실패했습니다: ${error.message}`);
@@ -842,14 +854,33 @@ function App() {
             <small>{parsedSave.loadCodes.length ? `${parsedSave.loadCodes.length}개 감지됨` : "세이브 텍스트에서 Load Code를 찾지 못했습니다."}</small>
           </div>
           {canAutoTypeLoadCodes && (
-            <button
-              type="button"
-              className="auto-type-button"
-              onClick={typeLoadCodesToWarcraft}
-              disabled={isTypingLoadCodes || !parsedSave.loadCodes.length}
-            >
-              {isTypingLoadCodes ? "입력 중" : "Warcraft 3 자동 입력"}
-            </button>
+            <div className="auto-type-controls">
+              <label>
+                <span>Input delay ms</span>
+                <input
+                  type="number"
+                  min="80"
+                  max="3000"
+                  step="50"
+                  value={autoInputDelayMs}
+                  onChange={(event) => {
+                    const nextValue = Number(event.target.value);
+                    if (Number.isFinite(nextValue)) {
+                      setAutoInputDelayMs(Math.max(80, Math.min(nextValue, 3000)));
+                    }
+                  }}
+                  disabled={isTypingLoadCodes}
+                />
+              </label>
+              <button
+                type="button"
+                className="auto-type-button"
+                onClick={typeLoadCodesToWarcraft}
+                disabled={isTypingLoadCodes || !parsedSave.loadCodes.length}
+              >
+                {isTypingLoadCodes ? "입력 중" : "Warcraft 3 자동 입력"}
+              </button>
+            </div>
           )}
         </div>
         <div className="load-code-list">

@@ -140,12 +140,36 @@ Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 public static class TWRPGWin32 {
+  public const int KEYEVENTF_KEYUP = 0x0002;
+  public const byte VK_CONTROL = 0x11;
+  public const byte VK_RETURN = 0x0D;
+  public const byte VK_V = 0x56;
   [DllImport("user32.dll")]
   public static extern bool SetForegroundWindow(IntPtr hWnd);
   [DllImport("user32.dll")]
   public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+  [DllImport("user32.dll")]
+  public static extern void keybd_event(byte bVk, byte bScan, int dwFlags, UIntPtr dwExtraInfo);
 }
 "@
+function Send-KeyDown([byte]$key) {
+  [TWRPGWin32]::keybd_event($key, 0, 0, [UIntPtr]::Zero)
+}
+function Send-KeyUp([byte]$key) {
+  [TWRPGWin32]::keybd_event($key, 0, [TWRPGWin32]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+}
+function Press-Key([byte]$key) {
+  Send-KeyDown $key
+  Start-Sleep -Milliseconds 55
+  Send-KeyUp $key
+}
+function Press-CtrlV {
+  Send-KeyDown ([TWRPGWin32]::VK_CONTROL)
+  Start-Sleep -Milliseconds 55
+  Press-Key ([TWRPGWin32]::VK_V)
+  Start-Sleep -Milliseconds 55
+  Send-KeyUp ([TWRPGWin32]::VK_CONTROL)
+}
 $target = Get-Process | Where-Object {
   $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -match [regex]::Escape($payload.windowTitle)
 } | Select-Object -First 1
@@ -162,11 +186,12 @@ if (-not $target) {
 Start-Sleep -Milliseconds ([int]$payload.startDelayMs)
 foreach ($code in @($payload.codes)) {
   [System.Windows.Forms.Clipboard]::SetText([string]$code)
-  [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+  Start-Sleep -Milliseconds 120
+  Press-Key ([TWRPGWin32]::VK_RETURN)
   Start-Sleep -Milliseconds ([int]$payload.delayMs)
-  [System.Windows.Forms.SendKeys]::SendWait("^v")
+  Press-CtrlV
   Start-Sleep -Milliseconds ([int]$payload.delayMs)
-  [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+  Press-Key ([TWRPGWin32]::VK_RETURN)
   Start-Sleep -Milliseconds ([int]$payload.delayMs)
 }
 Write-Output "typed"
