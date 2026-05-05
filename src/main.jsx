@@ -108,12 +108,23 @@ function parseSaveFile(raw) {
   const sectionNames = new Set(["Hero Inventory", "Bag", "Storage"]);
   const inventory = new Map();
   const sections = {};
+  const loadCodes = [];
   let activeSection = null;
 
   const preloadRegex = /Preload\(\s*"([^"]*)"\s*\)/g;
   const lines = [...raw.matchAll(preloadRegex)].map((match) => match[1].trim());
 
   for (const line of lines) {
+    const loadCodeMatch = line.match(/^Load Code\s+(\d+):\s*(-load\s+.+)$/i);
+    if (loadCodeMatch) {
+      loadCodes.push({
+        id: loadCodeMatch[1],
+        label: `Load Code ${loadCodeMatch[1]}`,
+        code: loadCodeMatch[2].trim(),
+      });
+      continue;
+    }
+
     const sectionMatch = line.match(/^-{5,}(.+?)-{5,}$/);
     if (sectionMatch) {
       const name = sectionMatch[1].trim();
@@ -136,6 +147,7 @@ function parseSaveFile(raw) {
   return {
     inventory,
     sections,
+    loadCodes,
     total: [...inventory.values()].reduce((sum, count) => sum + count, 0),
   };
 }
@@ -485,6 +497,7 @@ function App() {
   const [query, setQuery] = useState("");
   const [hoveredStats, setHoveredStats] = useState(null);
   const [hideStatsTimerId, setHideStatsTimerId] = useState(null);
+  const [copiedLoadCodeId, setCopiedLoadCodeId] = useState("");
   const [theme, setTheme] = useState(() => loadSavedTheme());
 
   useEffect(() => {
@@ -696,6 +709,29 @@ function App() {
     setQuery("");
   };
 
+  const copyLoadCode = async (loadCode) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(loadCode.code);
+      } else {
+        const copyTarget = document.createElement("textarea");
+        copyTarget.value = loadCode.code;
+        copyTarget.setAttribute("readonly", "");
+        copyTarget.style.position = "fixed";
+        copyTarget.style.opacity = "0";
+        document.body.appendChild(copyTarget);
+        copyTarget.select();
+        document.execCommand("copy");
+        document.body.removeChild(copyTarget);
+      }
+
+      setCopiedLoadCodeId(loadCode.id);
+      window.setTimeout(() => setCopiedLoadCodeId(""), 1200);
+    } catch (error) {
+      window.alert(`로드 코드를 복사하지 못했습니다: ${error.message}`);
+    }
+  };
+
   return (
     <main>
       <header className="topbar">
@@ -772,6 +808,25 @@ function App() {
           onChange={(event) => setSaveText(event.target.value)}
           placeholder="PreloadFiles 내용 전체를 붙여넣으세요."
         />
+      </section>
+
+      <section className="load-code-strip" aria-label="로드 코드">
+        <div className="load-code-head">
+          <strong>로드 코드</strong>
+          <small>{parsedSave.loadCodes.length ? `${parsedSave.loadCodes.length}개 감지됨` : "세이브 텍스트에서 Load Code를 찾지 못했습니다."}</small>
+        </div>
+        <div className="load-code-list">
+          {parsedSave.loadCodes.map((loadCode) => (
+            <div key={loadCode.id} className="load-code-row">
+              <span>{loadCode.label}</span>
+              <code>{loadCode.code}</code>
+              <button type="button" onClick={() => copyLoadCode(loadCode)}>
+                {copiedLoadCodeId === loadCode.id ? "복사됨" : "복사"}
+              </button>
+            </div>
+          ))}
+          {!parsedSave.loadCodes.length && <p className="empty">Load Code 1/2/3 형식의 코드가 여기에 표시됩니다.</p>}
+        </div>
       </section>
 
       <section className="workspace">
