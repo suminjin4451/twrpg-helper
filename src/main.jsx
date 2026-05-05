@@ -29,9 +29,9 @@ function loadSavedTheme() {
 }
 
 function loadSavedAutoInputDelayMs() {
-  if (typeof window === "undefined") return 700;
+  if (typeof window === "undefined") return 80;
   const parsed = Number(window.localStorage.getItem(autoInputDelayStorageKey));
-  return Number.isFinite(parsed) && parsed >= 80 && parsed <= 3000 ? parsed : 700;
+  return Number.isFinite(parsed) && parsed >= 10 && parsed <= 3000 ? parsed : 80;
 }
 
 function createPreset({ id, name, saveText = "", saveFilePath = "", selected = [] }) {
@@ -859,14 +859,14 @@ function App() {
                 <span>Input delay ms</span>
                 <input
                   type="number"
-                  min="80"
+                  min="10"
                   max="3000"
-                  step="50"
+                  step="10"
                   value={autoInputDelayMs}
                   onChange={(event) => {
                     const nextValue = Number(event.target.value);
                     if (Number.isFinite(nextValue)) {
-                      setAutoInputDelayMs(Math.max(80, Math.min(nextValue, 3000)));
+                      setAutoInputDelayMs(Math.max(10, Math.min(nextValue, 3000)));
                     }
                   }}
                   disabled={isTypingLoadCodes}

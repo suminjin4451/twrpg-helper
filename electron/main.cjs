@@ -123,7 +123,7 @@ ipcMain.handle("load-code:type", async (_event, payload = {}) => {
     throw new Error("No load codes were provided.");
   }
 
-  const delayMs = Math.max(80, Math.min(Number(payload.delayMs) || 350, 3000));
+  const delayMs = Math.max(10, Math.min(Number(payload.delayMs) || 80, 3000));
   const startDelayMs = Math.max(0, Math.min(Number(payload.startDelayMs) || 1200, 10000));
   const windowTitle = String(payload.windowTitle || "Warcraft").trim() || "Warcraft";
   const encodedPayload = Buffer.from(
